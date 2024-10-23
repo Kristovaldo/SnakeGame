@@ -27,7 +27,7 @@ def handle_client(client_socket, player):
             if not all(players_connected):
                 continue
 
-            data = client_socket.recv(1024).decode('utf-8')
+            data = client_socket.recv(2048).decode('utf-8')
             if not data:
                 break
 
