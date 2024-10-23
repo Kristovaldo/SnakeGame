@@ -24,6 +24,9 @@ font = pygame.font.Font(None, 32)
 # Variável Global para Armazenar Nickname do Usuário Logado
 logged_in_user = None
 
+# Número de entradas por página
+entries_per_page = 10
+
 
 def draw_text(surface, text, pos, color=black):
     text_surface = font.render(text, True, color)
@@ -45,73 +48,24 @@ def connect_to_db():
         sys.exit(1)
 
 
-def register_user(nickname, email, password):
+def fetch_leaderboards_data():
     try:
         connection = connect_to_db()
         cursor = connection.cursor()
 
-        # Inserir usuário na tabela Player
-        query = "INSERT INTO PLAYER (email_player, nickname, password, dt_cadastro) VALUES (%s, %s, %s, CURRENT_DATE)"
-        cursor.execute(query, (email, nickname, password))
-        connection.commit()
+        query = "SELECT nickname, nmaior_pontc FROM PLAYER ORDER BY nmaior_pontc DESC LIMIT 100"
+        cursor.execute(query)
+        result = cursor.fetchall()
         cursor.close()
         connection.close()
 
-        # Exibir popup de sucesso
-        show_popup("Sucesso", "Registrado com sucesso!")
+        return result
     except mysql.connector.Error as err:
-        # Tratar mensagens de erro
-        error_message = translate_error(err)
-        # Exibir popup de erro
-        show_popup_error("Erro", f"Falha ao registrar: {error_message}")
+        show_popup_error("Erro", f"Falha ao buscar dados: {translate_error(err)}")
+        return []
 
 
-def login_user(email, password):
-    try:
-        connection = connect_to_db()
-        cursor = connection.cursor()
-
-        # Buscar usuário na tabela Player
-        query = "SELECT nickname FROM PLAYER WHERE email_player = %s AND password = %s"
-        cursor.execute(query, (email, password))
-        result = cursor.fetchone()
-        cursor.close()
-        connection.close()
-
-        if result:
-            global logged_in_user
-            logged_in_user = result[0]
-            return True
-        else:
-            return False
-    except mysql.connector.Error as err:
-        # Tratar mensagens de erro
-        error_message = translate_error(err)
-        show_popup_error("Erro", f"Falha ao fazer login: {error_message}")
-        return False
-
-
-def translate_error(err):
-    if err.errno == mysql.connector.errorcode.ER_DUP_ENTRY:
-        return "E-mail já cadastrado."
-    elif err.errno == mysql.connector.errorcode.ER_BAD_DB_ERROR:
-        return "O banco de dados especificado não existe."
-    elif err.errno == mysql.connector.errorcode.ER_ACCESS_DENIED_ERROR:
-        return "Credenciais de acesso ao banco de dados inválidas."
-    else:
-        return "Ocorreu um erro desconhecido."
-
-
-def show_popup(title, message):
-    root = tk.Tk()
-    root.withdraw()  # Esconder a janela principal
-    messagebox.showinfo(title, message)
-
-
-def show_popup_error(title, message):
-    root = tk.Tk()
-    root.withdraw()  # Esconder a janela principal
-    messagebox.showerror(title, message)
+leaderboards_data = fetch_leaderboards_data()
 
 
 def main_menu():
@@ -173,6 +127,30 @@ def main_menu():
         pygame.display.flip()
 
 
+def translate_error(err):
+    if err.errno == mysql.connector.errorcode.ER_DUP_ENTRY:
+        return "E-mail já cadastrado."
+    elif err.errno == mysql.connector.errorcode.ER_BAD_DB_ERROR:
+        return "O banco de dados especificado não existe."
+    elif err.errno == mysql.connector.errorcode.ER_ACCESS_DENIED_ERROR:
+        return "Credenciais de acesso ao banco de dados inválidas."
+    else:
+        return "Ocorreu um erro desconhecido."
+
+
+def show_popup(title, message):
+    root = tk.Tk()
+    root.withdraw()  # Esconder a janela principal
+    messagebox.showinfo(title, message)
+
+
+def show_popup_error(title, message):
+    root = tk.Tk()
+    root.withdraw()  # Esconder a janela principal
+    messagebox.showerror(title, message)
+
+
+
 def play_game():
     back_button = pygame.Rect(650, 550, 120, 50)
     running = True
@@ -191,6 +169,66 @@ def play_game():
 
         pygame.draw.rect(screen, black, back_button, 2)
         draw_text(screen, "Back", (back_button.x + 20, back_button.y + 10))
+
+        # Exibir nickname do usuário logado
+        if logged_in_user:
+            draw_text(screen, f"Logged in as: {logged_in_user}", (10, 10))
+
+        pygame.display.flip()
+
+
+def leaderboards_screen():
+    back_button = pygame.Rect(650, 550, 120, 50)
+    next_button = pygame.Rect(680, 500, 80, 40)
+    prev_button = pygame.Rect(20, 500, 80, 40)
+
+    page = 0
+    running = True
+    while running:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+                pygame.quit()
+                sys.exit()
+
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if back_button.collidepoint(event.pos):
+                    return
+
+                if next_button.collidepoint(event.pos):
+                    if (page + 1) * entries_per_page < len(leaderboards_data):
+                        page += 1
+
+                if prev_button.collidepoint(event.pos):
+                    if page > 0:
+                        page -= 1
+
+        screen.fill(white)
+
+        # Desenhar botões
+        pygame.draw.rect(screen, black, back_button, 2)
+        draw_text(screen, "Back", (back_button.x + 20, back_button.y + 10))
+
+        pygame.draw.rect(screen, black, next_button, 2)
+        draw_text(screen, "Next", (next_button.x + 10, next_button.y + 5))
+
+        pygame.draw.rect(screen, black, prev_button, 2)
+        draw_text(screen, "Prev", (prev_button.x + 10, prev_button.y + 5))
+
+        # Desenhar cabeçalhos da tabela
+        draw_text(screen, "Nickname", (150, 50))
+        draw_text(screen, "Maior Pontuação", (500, 50))
+
+        # Desenhar dados da tabela
+        start_index = page * entries_per_page
+        end_index = start_index + entries_per_page
+
+        for i, (nickname, score) in enumerate(leaderboards_data[start_index:end_index]):
+            y_pos = 100 + i * 40
+            order_number = start_index + i + 1
+            draw_text(screen, str(order_number), (50, y_pos))  # Exibir ordem do registro
+            draw_text(screen, nickname, (150, y_pos))
+            draw_text(screen, str(score), (500, y_pos))
 
         # Exibir nickname do usuário logado
         if logged_in_user:
@@ -263,6 +301,27 @@ def login_screen():
         draw_text(screen, "Back", (back_button.x + 20, back_button.y + 10))
 
         pygame.display.flip()
+
+
+def register_user(nickname, email, password):
+    try:
+        connection = connect_to_db()
+        cursor = connection.cursor()
+
+        # Inserir usuário na tabela Player
+        query = "INSERT INTO PLAYER (email_player, nickname, password, dt_cadastro) VALUES (%s, %s, %s, CURRENT_DATE)"
+        cursor.execute(query, (email, nickname, password))
+        connection.commit()
+        cursor.close()
+        connection.close()
+
+        # Exibir popup de sucesso
+        show_popup("Sucesso", "Registrado com sucesso!")
+    except mysql.connector.Error as err:
+        # Tratar mensagens de erro
+        error_message = translate_error(err)
+        # Exibir popup de erro
+        show_popup_error("Erro", f"Falha ao registrar: {error_message}")
 
 
 def register_screen():
@@ -403,29 +462,28 @@ def credits_screen():
         pygame.display.flip()
 
 
-def leaderboards_screen():
-    back_button = pygame.Rect(650, 550, 120, 50)
-    running = True
-    while running:
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit()
-                sys.exit()
-            if event.type == pygame.MOUSEBUTTONDOWN:
-                if back_button.collidepoint(event.pos):
-                    return
+def login_user(email, password):
+    try:
+        connection = connect_to_db()
+        cursor = connection.cursor()
 
-        screen.fill(white)
-        draw_text(screen, "Leaderboards Screen", (300, 250))
+        # Buscar usuário na tabela Player
+        query = "SELECT nickname FROM PLAYER WHERE email_player = %s AND password = %s"
+        cursor.execute(query, (email, password))
+        result = cursor.fetchone()
+        cursor.close()
+        connection.close()
 
-        pygame.draw.rect(screen, black, back_button, 2)
-        draw_text(screen, "Back", (back_button.x + 20, back_button.y + 10))
-
-        # Exibir nickname do usuário logado
-        if logged_in_user:
-            draw_text(screen, f"Logged in as: {logged_in_user}", (10, 10))
-
-        pygame.display.flip()
-
+        if result:
+            global logged_in_user
+            logged_in_user = result[0]
+            return True
+        else:
+            return False
+    except mysql.connector.Error as err:
+        # Tratar mensagens de erro
+        error_message = translate_error(err)
+        show_popup_error("Erro", f"Falha ao fazer login: {error_message}")
+        return
 
 main_menu()
