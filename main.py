@@ -1,3 +1,5 @@
+from contextlib import nullcontext
+
 import pygame
 import sys
 import mysql.connector
@@ -107,15 +109,17 @@ def main_menu():
         screen.fill(white)
 
         pygame.draw.rect(screen, black, play_button, 2)
-        pygame.draw.rect(screen, black, login_button, 2)
-        pygame.draw.rect(screen, black, register_button, 2)
+        if logged_in_user is None:
+            pygame.draw.rect(screen, black, login_button, 2)
+            pygame.draw.rect(screen, black, register_button, 2)
         pygame.draw.rect(screen, black, credits_button, 2)
         pygame.draw.rect(screen, black, leaderboards_button, 2)
         pygame.draw.rect(screen, black, quit_button, 2)
 
         draw_text(screen, "Play", (play_button.x + 25, play_button.y + 10))
-        draw_text(screen, "Login", (login_button.x + 15, login_button.y + 10))
-        draw_text(screen, "Register", (register_button.x + 5, register_button.y + 10))
+        if logged_in_user is None:
+            draw_text(screen, "Login", (login_button.x + 15, login_button.y + 10))
+            draw_text(screen, "Register", (register_button.x + 5, register_button.y + 10))
         draw_text(screen, "Credits", (credits_button.x + 15, credits_button.y + 10))
         draw_text(screen, "Leaderboards", (leaderboards_button.x + 5, leaderboards_button.y + 10))
         draw_text(screen, "Quit", (quit_button.x + 40, quit_button.y + 10))
@@ -264,6 +268,7 @@ def login_screen():
                     else:
                         if login_user(email_text, password_text):
                             show_popup("Sucesso", "Login realizado com sucesso!")
+                            return
                         else:
                             show_popup_error("Erro", "E-mail ou senha inválidos.")
                 elif back_button.collidepoint(event.pos):
@@ -375,7 +380,7 @@ def register_screen():
                     return
                 else:
                     active_input = None
-            if event.type == pygame.KEYDOWN and active_input:
+            if event.type == pygame.KEYDOWN and event.key != pygame.K_RETURN and active_input:
                 if event.key == pygame.K_BACKSPACE:
                     if active_input == 'email':
                         email_text = email_text[:-1]
@@ -394,6 +399,7 @@ def register_screen():
                         password_text += event.unicode
                     elif active_input == 'confirm_password':
                         confirm_password_text += event.unicode
+
 
         screen.fill(white)
         draw_text(screen, "Register Screen", (300, 100))
