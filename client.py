@@ -2,7 +2,6 @@ import pygame
 import socket
 import ast
 import config  # Importa as configurações do arquivo config.py
-from config import width, height
 
 pygame.init()
 
@@ -86,16 +85,13 @@ def game_loop():
 
             if len(data) == 0:
                 print("Nenhum dado recebido do servidor")
-                running = False
                 break
 
-            game_state = None
             try:
                 game_state = ast.literal_eval(data)
                 print("Estado do jogo recebido do servidor:", game_state)
             except SyntaxError as e:
                 print("Erro ao decodificar o estado do jogo:", e)
-                running = False
                 break
 
             if game_state:
@@ -106,7 +102,6 @@ def game_loop():
                 food_pos = game_state["food_pos"]
         except Exception as e:
             print(f"Erro ao comunicar com o servidor: {e}")
-            running = False
             break
 
         # Desenha tudo na tela
