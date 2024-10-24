@@ -7,6 +7,8 @@ import re
 import tkinter as tk
 from tkinter import messagebox
 
+from game_offline import rodar_jogo
+
 pygame.init()
 
 # Inicializar Pygame
@@ -65,10 +67,6 @@ def fetch_leaderboards_data():
     except mysql.connector.Error as err:
         show_popup_error("Erro", f"Falha ao buscar dados: {translate_error(err)}")
         return []
-
-
-leaderboards_data = fetch_leaderboards_data()
-
 
 def main_menu():
     # Dimensões dos botões
@@ -157,6 +155,9 @@ def show_popup_error(title, message):
 
 def play_game():
     back_button = pygame.Rect(650, 550, 120, 50)
+    play_off_button = pygame.Rect(300, 250, 180, 50)
+    play_on_button = pygame.Rect(300, 350, 180, 50)
+
     running = True
     while running:
         for event in pygame.event.get():
@@ -167,9 +168,19 @@ def play_game():
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if back_button.collidepoint(event.pos):
                     return
+                if play_off_button.collidepoint(event.pos):
+                    rodar_jogo()
+                    running = False
+                    pygame.quit()
+                    sys.exit()
 
         screen.fill(white)
-        draw_text(screen, "Play Game Screen", (300, 250))
+
+        pygame.draw.rect(screen, black, play_off_button, 2)
+        draw_text(screen, "Play Offline", (play_off_button.x + 20, play_off_button.y + 10))
+
+        pygame.draw.rect(screen, black, play_on_button, 2)
+        draw_text(screen, "Play Online", (play_on_button.x + 20, play_on_button.y + 10))
 
         pygame.draw.rect(screen, black, back_button, 2)
         draw_text(screen, "Back", (back_button.x + 20, back_button.y + 10))
@@ -182,6 +193,7 @@ def play_game():
 
 
 def leaderboards_screen():
+    leaderboards_data = fetch_leaderboards_data()
     back_button = pygame.Rect(650, 550, 120, 50)
     next_button = pygame.Rect(680, 500, 80, 40)
     prev_button = pygame.Rect(20, 500, 80, 40)
