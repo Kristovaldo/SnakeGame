@@ -6,9 +6,10 @@ import mysql.connector
 import re
 import tkinter as tk
 from tkinter import messagebox
-
+import paramiko
+from client import inicializa_client, game_loop
 from game_offline import rodar_jogo
-
+import config
 pygame.init()
 
 # Inicializar Pygame
@@ -16,8 +17,8 @@ screen = pygame.display.set_mode((800, 600))
 pygame.display.set_caption("Snake Game")
 
 # Cores
-white = (255, 255, 255)
-black = (0, 0, 0)
+white = config.branco
+black = config.preto
 gray = (200, 200, 200)
 active_color = pygame.Color('dodgerblue2')
 inactive_color = pygame.Color('lightskyblue3')
@@ -78,7 +79,7 @@ def main_menu():
     login_button = pygame.Rect(250, 200, button_width, button_height)
     register_button = pygame.Rect(250, 300, button_width, button_height)
     credits_button = pygame.Rect(250, 400, button_width, button_height)
-    leaderboards_button = pygame.Rect(250, 500, button_width, button_height)
+    leaderboards_button = pygame.Rect(0, 550, button_width+10, button_height)
     quit_button = pygame.Rect(650, 550, button_width, button_height)
 
     running = True
@@ -91,9 +92,9 @@ def main_menu():
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if play_button.collidepoint(event.pos):
                     play_game()
-                if login_button.collidepoint(event.pos):
+                if login_button.collidepoint(event.pos) and not logged_in_user:
                     login_screen()
-                if register_button.collidepoint(event.pos):
+                if register_button.collidepoint(event.pos)and not logged_in_user:
                     register_screen()
                 if credits_button.collidepoint(event.pos):
                     credits_screen()
@@ -124,7 +125,7 @@ def main_menu():
 
         # Exibir nickname do usuário logado
         if logged_in_user:
-            draw_text(screen, f"Logged in as: {logged_in_user}", (10, 10))
+            draw_text(screen, f"{logged_in_user}", (10, 10))
 
         pygame.display.flip()
 
@@ -151,13 +152,47 @@ def show_popup_error(title, message):
     root.withdraw()  # Esconder a janela principal
     messagebox.showerror(title, message)
 
+def check_server_running(ssh):
+    stdin, stdout, stderr = ssh.exec_command('pgrep -f server.py')
+    print(stdout.read().decode())
+    if not stdout.read().decode():
+        return False
+    return True
 
+def connect_vm_ssh():
+    # Definindo as informações da conexão
+    ip_address = '35.212.233.61'
+    username = 'chuaum141'
+    private_key_path = 'keyVM-open'  # Substitua pelo caminho correto da sua chave privada
+
+    # Cria um cliente SSH
+    ssh = paramiko.SSHClient()
+    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())  # Aceita automaticamente a chave do servidor
+
+    try:
+        # Carrega a chave privada
+        private_key = paramiko.RSAKey.from_private_key_file(private_key_path)
+        ssh.connect(ip_address, username=username, pkey=private_key)
+        #if not check_server_running(ssh):
+            #ssh.exec_command('nohup python3 ./server.py > server.log 2>&1 &')
+
+
+    except paramiko.AuthenticationException:
+        print("Falha na autenticação, verifique suas credenciais")
+    except paramiko.SSHException as sshException:
+        print(f"Erro ao se conectar ao servidor SSH: {sshException}")
+    except Exception as e:
+        print(f"Ocorreu um erro: {e}")
+    finally:
+        # Fecha a conexão SSH
+        ssh.close()
 
 def play_game():
     back_button = pygame.Rect(650, 550, 120, 50)
     play_off_button = pygame.Rect(300, 250, 180, 50)
     play_on_button = pygame.Rect(300, 350, 180, 50)
-
+    player1_name = logged_in_user
+    player2_name = "Corno 2"
     running = True
     while running:
         for event in pygame.event.get():
@@ -170,17 +205,18 @@ def play_game():
                     return
                 if play_off_button.collidepoint(event.pos):
                     rodar_jogo()
-                    running = False
-                    pygame.quit()
-                    sys.exit()
+                if play_on_button.collidepoint(event.pos) and logged_in_user:
+                    connect_vm_ssh()
+                    inicializa_client(player1_name, player2_name)
 
         screen.fill(white)
 
         pygame.draw.rect(screen, black, play_off_button, 2)
         draw_text(screen, "Play Offline", (play_off_button.x + 20, play_off_button.y + 10))
 
-        pygame.draw.rect(screen, black, play_on_button, 2)
-        draw_text(screen, "Play Online", (play_on_button.x + 20, play_on_button.y + 10))
+        if logged_in_user:
+            pygame.draw.rect(screen, black, play_on_button, 2)
+            draw_text(screen, "Play Online", (play_on_button.x + 20, play_on_button.y + 10))
 
         pygame.draw.rect(screen, black, back_button, 2)
         draw_text(screen, "Back", (back_button.x + 20, back_button.y + 10))
@@ -504,4 +540,5 @@ def login_user(email, password):
         show_popup_error("Erro", f"Falha ao fazer login: {error_message}")
         return
 
-main_menu()
+if __name__ == "__main__":
+    main_menu()

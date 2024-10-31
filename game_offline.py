@@ -38,9 +38,14 @@ def rodar_jogo():
 
         while fim_de_jogo:
             tela.fill(preto)
+            fonte = pygame.font.SysFont(None, 100)
+            mensagem = fonte.render("Fim de jogo", True, branco)
+            tela.blit(mensagem, [largura // 2 - 90, altura // 3])
             fonte = pygame.font.SysFont(None, 50)
-            mensagem = fonte.render("Fim de jogo - Pressione C", True, branco)
-            tela.blit(mensagem, [largura // 6, altura // 3])
+            mensagem = fonte.render("Pressione C para Jogar Novamente", True, branco)
+            tela.blit(mensagem, [largura // 6, altura // 3 + 200])
+            mensagem = fonte.render("Pressione ESCAPE para Voltar ao Menu", True, branco)
+            tela.blit(mensagem, [largura // 6, altura // 3 + 300])
             pygame.display.update()
 
             for evento in pygame.event.get():
@@ -52,24 +57,29 @@ def rodar_jogo():
                         fim_jogo = True
                         fim_de_jogo = False
                     if evento.key == pygame.K_c:
+                        fim_de_jogo = False
                         rodar_jogo()
+                    elif evento.key == pygame.K_ESCAPE:
+                        return
 
         for evento in pygame.event.get():
             if evento.type == pygame.QUIT:
                 fim_jogo = True
             if evento.type == pygame.KEYDOWN:
-                if evento.key == pygame.K_LEFT:
+                if evento.key == pygame.K_LEFT or evento.key == pygame.K_a:
                     x_cobra_velocidade = -tamanho_quadrado
                     y_cobra_velocidade = 0
-                elif evento.key == pygame.K_RIGHT:
+                elif evento.key == pygame.K_RIGHT or evento.key == pygame.K_d:
                     x_cobra_velocidade = tamanho_quadrado
                     y_cobra_velocidade = 0
-                elif evento.key == pygame.K_UP:
+                elif evento.key == pygame.K_UP or evento.key == pygame.K_w:
                     y_cobra_velocidade = -tamanho_quadrado
                     x_cobra_velocidade = 0
-                elif evento.key == pygame.K_DOWN:
+                elif evento.key == pygame.K_DOWN or evento.key == pygame.K_s:
                     y_cobra_velocidade = tamanho_quadrado
                     x_cobra_velocidade = 0
+                elif evento.key == pygame.K_ESCAPE:
+                    return
 
         x_cobra += x_cobra_velocidade
         y_cobra += y_cobra_velocidade
@@ -104,4 +114,5 @@ def rodar_jogo():
 
     pygame.quit()
 
-rodar_jogo()
+if __name__ == "__main__":
+    rodar_jogo()

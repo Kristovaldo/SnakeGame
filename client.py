@@ -1,6 +1,8 @@
 import pygame
 import socket
 import ast
+import tkinter as tk
+from tkinter import messagebox
 import config  # Importa as configurações do arquivo config.py
 
 pygame.init()
@@ -27,21 +29,36 @@ food_pos = [0, 0]
 # Função para mostrar a pontuação (opcional)
 font_style = pygame.font.Font(None, 20)
 waiting_font = pygame.font.Font(None, 50)
+def show_popup_error(title, message):
+    root = tk.Tk()
+    root.withdraw()  # Esconder a janela principal
+    messagebox.showerror(title, message)
 
-# Inicializações do cliente
-try:
-    client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    client.connect(("35.212.233.61", 9999))
-    print("Conectado ao servidor")
-    waiting_message = waiting_font.render("Aguardando conexão Player 2", True, config.branco)
-    screen.blit(waiting_message, (
-        (config.width - waiting_message.get_width()) // 2,
-        (config.height - waiting_message.get_height()) // 2
-    ))
-    pygame.display.update()
-except Exception as e:
-    print(f"Erro ao conectar ao servidor: {e}")
-    exit()
+def show_popup(title, message):
+    root = tk.Tk()
+    root.withdraw()  # Esconder a janela principal
+    messagebox.showinfo(title, message)
+
+def inicializa_client(player1_name, player2_name):
+    try:
+        client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        #client.connect(("35.212.233.61", 9999))
+        client.connect(("192.168.15.2", 9999))
+        client.sendall(f"{player1_name},{player2_name}".encode('utf-8'))
+        data = client.recv(2048).decode('utf-8')
+        if data:
+            received_player1_name, received_player2_name = data.split(',')
+            print(f"[Client] Recebido do servidor: {received_player1_name}, {received_player2_name}")
+        waiting_message = waiting_font.render("Aguardando conexão Player 2", True, config.branco)
+        screen.fill(config.preto)
+        screen.blit(waiting_message, (
+            (config.width - waiting_message.get_width()) // 2,
+            (config.height - waiting_message.get_height()) // 2
+        ))
+        pygame.display.update()
+        game_loop(client)
+    except Exception as e:
+        show_popup_error('Error',f"Erro ao conectar ao servidor: {e}")
 
 
 def show_score(player_name, score, x, y):
@@ -49,15 +66,13 @@ def show_score(player_name, score, x, y):
     screen.blit(value, [x, y])
 
 
-def game_loop():
+def game_loop(client):
     global player_snake, other_snake, food_pos
     running = True
     direction = STOP
 
     player1_score = 0
     player2_score = 0
-    player1_name = "Player 1"
-    player2_name = "Player 2"
 
     while running:
         for event in pygame.event.get():
@@ -65,23 +80,24 @@ def game_loop():
                 running = False
                 break
             elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_w:
+                if event.key == pygame.K_w or event.key == pygame.K_UP:
                     direction = UP
-                elif event.key == pygame.K_s:
+                elif event.key == pygame.K_s or event.key == pygame.K_DOWN:
                     direction = DOWN
-                elif event.key == pygame.K_a:
+                elif event.key == pygame.K_a or event.key == pygame.K_LEFT:
                     direction = LEFT
-                elif event.key == pygame.K_d:
+                elif event.key == pygame.K_d or event.key == pygame.K_RIGHT:
                     direction = RIGHT
                 elif event.key == pygame.K_ESCAPE:
                     running = False
+                    return
 
         try:
             # Envia a direção para o servidor
             client.sendall(direction.encode('utf-8'))
 
             # Recebe o estado do jogo do servidor
-            data = client.recv(1024).decode('utf-8')
+            data = client.recv(2048).decode('utf-8')
 
             if len(data) == 0:
                 print("Nenhum dado recebido do servidor")
@@ -114,14 +130,13 @@ def game_loop():
         pygame.draw.rect(screen, config.vermelho, pygame.Rect(food_pos[0], food_pos[1], config.snake_block, config.snake_block))
 
         # Mostrar as pontuações
-        show_score(player1_name, player1_score, 10, 10)
-        show_score(player2_name, player2_score, config.width - 150, 10)  # Ajuste a posição conforme necessário
+        show_score('player1_name', player1_score, 10, 10)
+        show_score('player2_name', player2_score, config.width - 150, 10)  # Ajuste a posição conforme necessário
 
         # Atualiza a tela
         pygame.display.update()
         clock.tick(config.snake_speed)
 
-    pygame.quit()
     client.close()  # Fecha a conexão com o servidor
     print("Cliente desconectado")
 
