@@ -1,5 +1,3 @@
-from contextlib import nullcontext
-
 import pygame
 import sys
 import mysql.connector
@@ -22,9 +20,10 @@ black = config.preto
 gray = (200, 200, 200)
 active_color = pygame.Color('dodgerblue2')
 inactive_color = pygame.Color('lightskyblue3')
-
+bg = pygame.image.load("BG.jpg")
 # Fonte
-font = pygame.font.Font(None, 32)
+font = pygame.font.Font("Unlock-Regular.ttf", 32)
+fontPlay = pygame.font.Font("Unlock-Regular.ttf", 50)
 
 # Variável Global para Armazenar Nickname do Usuário Logado
 logged_in_user = None
@@ -32,11 +31,13 @@ logged_in_user = None
 # Número de entradas por página
 entries_per_page = 10
 
-
 def draw_text(surface, text, pos, color=black):
     text_surface = font.render(text, True, color)
     surface.blit(text_surface, pos)
 
+def draw_text2(surface, text, pos, color=black):
+    text_surface = fontPlay.render(text, True, color)
+    surface.blit(text_surface, pos)
 
 def connect_to_db():
     try:
@@ -52,6 +53,21 @@ def connect_to_db():
         print(f"Error: {err}")
         sys.exit(1)
 
+def update_score(new_score):
+    global pont
+    if new_score > pont:
+        try:
+            pont = new_score
+            connection = connect_to_db()
+            cursor = connection.cursor()
+
+            query = "UPDATE nmaior_pontc = %s FROM PLAYER WHERE cd_player = %s"
+            cursor.execute(query,(new_score, cd_player))
+            connection.commit()
+            cursor.close()
+            connection.close()
+        except mysql.connector.Error as err:
+            show_popup_error("Erro", f"Falha ao buscar dados: {translate_error(err)}")
 
 def fetch_leaderboards_data():
     try:
@@ -75,11 +91,11 @@ def main_menu():
     button_height = 50
 
     # Criar botões
-    play_button = pygame.Rect(250, 100, button_width, button_height)
-    login_button = pygame.Rect(250, 200, button_width, button_height)
-    register_button = pygame.Rect(250, 300, button_width, button_height)
-    credits_button = pygame.Rect(250, 400, button_width, button_height)
-    leaderboards_button = pygame.Rect(0, 550, button_width+10, button_height)
+    play_button = pygame.Rect(300, 200, button_width +50, button_height+ 50)
+    login_button = pygame.Rect(0, 0, button_width, button_height)
+    register_button = pygame.Rect(650, 0, button_width, button_height)
+    credits_button = pygame.Rect(350, 550, button_width, button_height)
+    leaderboards_button = pygame.Rect(0, 550, button_width+90, button_height)
     quit_button = pygame.Rect(650, 550, button_width, button_height)
 
     running = True
@@ -106,6 +122,7 @@ def main_menu():
                     sys.exit()
 
         screen.fill(white)
+        screen.blit(bg, (0 ,0))
 
         pygame.draw.rect(screen, black, play_button, 2)
         if logged_in_user is None:
@@ -115,7 +132,7 @@ def main_menu():
         pygame.draw.rect(screen, black, leaderboards_button, 2)
         pygame.draw.rect(screen, black, quit_button, 2)
 
-        draw_text(screen, "Play", (play_button.x + 25, play_button.y + 10))
+        draw_text2(screen, "Play", (play_button.x + 40, play_button.y + 20))
         if logged_in_user is None:
             draw_text(screen, "Login", (login_button.x + 15, login_button.y + 10))
             draw_text(screen, "Register", (register_button.x + 5, register_button.y + 10))
@@ -126,6 +143,7 @@ def main_menu():
         # Exibir nickname do usuário logado
         if logged_in_user:
             draw_text(screen, f"{logged_in_user}", (10, 10))
+            draw_text(screen, f"{pont}", (650, 10))
 
         pygame.display.flip()
 
@@ -159,6 +177,34 @@ def check_server_running(ssh):
         return False
     return True
 
+def winner_screen(winner):
+    back_button = pygame.Rect(650, 550, 120, 50)
+    running = True
+    while running:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+                pygame.quit()
+                sys.exit()
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if back_button.collidepoint(event.pos):
+                    return
+
+        screen.fill(white)
+        screen.blit(bg, (0, 0))
+        if winner == "":
+            draw_text(screen, "Empate!", (400, 300))
+        else:
+            draw_text(screen, f"{winner} Venceu!", (400, 300))
+        pygame.draw.rect(screen, black, back_button, 2)
+        draw_text(screen, "Back", (back_button.x + 20, back_button.y + 10))
+
+        # Exibir nickname do usuário logado
+        if logged_in_user:
+            draw_text(screen, f"{logged_in_user}", (10, 10))
+            draw_text(screen, f"{pont}", (650, 10))
+
+        pygame.display.flip()
 def connect_vm_ssh():
     # Definindo as informações da conexão
     ip_address = '35.212.233.61'
@@ -175,6 +221,39 @@ def connect_vm_ssh():
         ssh.connect(ip_address, username=username, pkey=private_key)
         #if not check_server_running(ssh):
             #ssh.exec_command('nohup python3 ./server.py > server.log 2>&1 &')
+        try:
+            # Conectar ao banco de dados
+            connection = connect_to_db()
+            cursor = connection.cursor()
+
+            # Buscar o código da última partida
+            query = "SELECT MAX(cd_partida) FROM PARTIDAS"
+            cursor.execute(query)
+            result = cursor.fetchone()
+
+            cd_partida = 0
+            if result[0]:
+                cd_partida = result[0]
+            cd_partida += 1
+
+            # Inserir nova partida na tabela PARTIDAS
+            query = "INSERT INTO PARTIDAS (cd_partida, dt_inic, dt_fim, ctpo_sit, cd_vencedor) VALUES (%s, CURRENT_TIMESTAMP, NULL, 3, NULL)"
+            cursor.execute(query, (cd_partida,))
+
+            # Confirmar as alterações no banco de dados
+            connection.commit()
+
+            # Fechar o cursor e a conexão
+            cursor.close()
+            connection.close()
+
+            return cd_partida
+
+        except mysql.connector.Error as err:
+            # Tratar mensagens de erro
+            error_message = translate_error(err)
+            # Exibir popup de erro
+            show_popup_error("Erro", f"Falha ao registrar: {error_message}")
 
 
     except paramiko.AuthenticationException:
@@ -189,10 +268,10 @@ def connect_vm_ssh():
 
 def play_game():
     back_button = pygame.Rect(650, 550, 120, 50)
-    play_off_button = pygame.Rect(300, 250, 180, 50)
-    play_on_button = pygame.Rect(300, 350, 180, 50)
+    play_off_button = pygame.Rect(300, 250, 220, 50)
+    play_on_button = pygame.Rect(300, 350, 220, 50)
     player1_name = logged_in_user
-    player2_name = "Corno 2"
+    player2_name = ""
     running = True
     while running:
         for event in pygame.event.get():
@@ -206,10 +285,17 @@ def play_game():
                 if play_off_button.collidepoint(event.pos):
                     rodar_jogo()
                 if play_on_button.collidepoint(event.pos) and logged_in_user:
-                    connect_vm_ssh()
-                    inicializa_client(player1_name, player2_name)
+                    partida = connect_vm_ssh()
+                    winner = inicializa_client(player1_name, player2_name, partida, cd_player)
+                    #winner, players = data
+                    #if int(players["player1"]["id_jogador"]) == cd_player:
+                    #    update_score(int(players["player1"]["score"]))
+                    #else:
+                    #    update_score(int(players["player2"]["score"]))
+                    #winner_screen(winner)
 
         screen.fill(white)
+        screen.blit(bg, (0, 0))
 
         pygame.draw.rect(screen, black, play_off_button, 2)
         draw_text(screen, "Play Offline", (play_off_button.x + 20, play_off_button.y + 10))
@@ -223,7 +309,8 @@ def play_game():
 
         # Exibir nickname do usuário logado
         if logged_in_user:
-            draw_text(screen, f"Logged in as: {logged_in_user}", (10, 10))
+            draw_text(screen, f"{logged_in_user}", (10, 10))
+            draw_text(screen, f"{pont}", (650, 10))
 
         pygame.display.flip()
 
@@ -256,6 +343,7 @@ def leaderboards_screen():
                         page -= 1
 
         screen.fill(white)
+        screen.blit(bg, (0, 0))
 
         # Desenhar botões
         pygame.draw.rect(screen, black, back_button, 2)
@@ -284,14 +372,15 @@ def leaderboards_screen():
 
         # Exibir nickname do usuário logado
         if logged_in_user:
-            draw_text(screen, f"Logged in as: {logged_in_user}", (10, 10))
+            draw_text(screen, f"{logged_in_user}", (10, 10))
+            draw_text(screen, f"{pont}", (650, 10))
 
         pygame.display.flip()
 
 
 def login_screen():
-    email_input = pygame.Rect(300, 200, 200, 32)
-    password_input = pygame.Rect(300, 250, 200, 32)
+    email_input = pygame.Rect(300, 200, 400, 32)
+    password_input = pygame.Rect(300, 250, 400, 32)
     login_button = pygame.Rect(350, 300, 100, 50)  # Botão de Login
     back_button = pygame.Rect(650, 550, 120, 50)
 
@@ -336,13 +425,16 @@ def login_screen():
                         password_text += event.unicode
 
         screen.fill(white)
+        screen.blit(bg, (0, 0))
         draw_text(screen, "Login Screen", (300, 150))
 
         # Desenha caixa de e-mail
+        draw_text(screen, "Email:", (190, email_input.y + 5))
         pygame.draw.rect(screen, active_color if active_input == 'email' else inactive_color, email_input, 2)
-        draw_text(screen, email_text, (email_input.x + 5, email_input.y + 5))
+        draw_text(screen, email_text, (email_input.x, email_input.y))
 
         # Desenha caixa de senha
+        draw_text(screen, "Senha:", (180, password_input.y + 5))
         pygame.draw.rect(screen, active_color if active_input == 'password' else inactive_color, password_input, 2)
         draw_text(screen, "*" * len(password_text), (password_input.x + 5, password_input.y + 5), color=black)
 
@@ -379,11 +471,11 @@ def register_user(nickname, email, password):
 
 def register_screen():
     label_offset_y = 5  # Distância vertical entre a label e o campo de entrada
-    email_input = pygame.Rect(300, 150, 200, 32)
-    nickname_input = pygame.Rect(300, 200, 200, 32)
-    password_input = pygame.Rect(300, 250, 200, 32)
-    confirm_password_input = pygame.Rect(300, 300, 200, 32)
-    register_button = pygame.Rect(340, 350, 120, 50)  # Botão Registrar
+    email_input = pygame.Rect(300, 150, 400, 32)
+    nickname_input = pygame.Rect(300, 200, 400, 32)
+    password_input = pygame.Rect(300, 250, 400, 32)
+    confirm_password_input = pygame.Rect(300, 300, 400, 32)
+    register_button = pygame.Rect(340, 350, 160, 50)  # Botão Registrar
     back_button = pygame.Rect(650, 550, 120, 50)
 
     email_text = ''
@@ -450,22 +542,23 @@ def register_screen():
 
 
         screen.fill(white)
+        screen.blit(bg, (0, 0))
         draw_text(screen, "Register Screen", (300, 100))
 
         # Desenha rótulos e caixas de entrada
-        draw_text(screen, "Email:", (225, email_input.y + label_offset_y))
+        draw_text(screen, "Email:", (190, email_input.y + label_offset_y))
         pygame.draw.rect(screen, active_color if active_input == 'email' else inactive_color, email_input, 2)
-        draw_text(screen, email_text, (email_input.x + 5, email_input.y + 5))
+        draw_text(screen, email_text, (email_input.x, email_input.y))
 
-        draw_text(screen, "Nickname:", (179, nickname_input.y + label_offset_y))
+        draw_text(screen, "Nickname:", (115, nickname_input.y + label_offset_y))
         pygame.draw.rect(screen, active_color if active_input == 'nickname' else inactive_color, nickname_input, 2)
-        draw_text(screen, nickname_text, (nickname_input.x + 5, nickname_input.y + 5))
+        draw_text(screen, nickname_text, (nickname_input.x, nickname_input.y))
 
-        draw_text(screen, "Senha:", (220, password_input.y + label_offset_y))
+        draw_text(screen, "Senha:", (180, password_input.y + label_offset_y))
         pygame.draw.rect(screen, active_color if active_input == 'password' else inactive_color, password_input, 2)
         draw_text(screen, "*" * len(password_text), (password_input.x + 5, password_input.y + 5), color=black)
 
-        draw_text(screen, "Confirme a Senha:", (100, confirm_password_input.y + label_offset_y))
+        draw_text(screen, "Conf. a Senha:", (60, confirm_password_input.y + label_offset_y))
         pygame.draw.rect(screen, active_color if active_input == 'confirm_password' else inactive_color,
                          confirm_password_input, 2)
         draw_text(screen, "*" * len(confirm_password_text),
@@ -504,6 +597,7 @@ def credits_screen():
                     return
 
         screen.fill(white)
+        screen.blit(bg, (0, 0))
         draw_text(screen, "Credits Screen", (300, 250))
 
         pygame.draw.rect(screen, black, back_button, 2)
@@ -511,7 +605,8 @@ def credits_screen():
 
         # Exibir nickname do usuário logado
         if logged_in_user:
-            draw_text(screen, f"Logged in as: {logged_in_user}", (10, 10))
+            draw_text(screen, f"{logged_in_user}", (10, 10))
+            draw_text(screen, f"{pont}", (650, 10))
 
         pygame.display.flip()
 
@@ -522,15 +617,17 @@ def login_user(email, password):
         cursor = connection.cursor()
 
         # Buscar usuário na tabela Player
-        query = "SELECT nickname FROM PLAYER WHERE email_player = %s AND password = %s"
+        query = "SELECT cd_player, nickname, nmaior_pontc FROM PLAYER WHERE email_player = %s AND password = %s"
         cursor.execute(query, (email, password))
         result = cursor.fetchone()
         cursor.close()
         connection.close()
 
         if result:
-            global logged_in_user
-            logged_in_user = result[0]
+            global logged_in_user, cd_player, pont
+            logged_in_user = result[1]
+            cd_player = result[0]
+            pont = result[2]
             return True
         else:
             return False

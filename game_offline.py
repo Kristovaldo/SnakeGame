@@ -3,7 +3,7 @@ import random
 
 pygame.init()
 pygame.display.set_caption('Snake')
-largura, altura = 600, 400
+largura, altura = 800, 600
 tela = pygame.display.set_mode((largura, altura))
 relogio = pygame.time.Clock()
 

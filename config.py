@@ -1,8 +1,8 @@
 # config.py
 
 # Configurações da tela
-width = 600
-height = 400
+width = 800
+height = 600
 
 # Velocidade da cobra
 snake_speed = 10

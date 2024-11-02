@@ -39,12 +39,12 @@ def show_popup(title, message):
     root.withdraw()  # Esconder a janela principal
     messagebox.showinfo(title, message)
 
-def inicializa_client(player1_name, player2_name):
+def inicializa_client(player1_name, player2_name, partida, cd_player):
     try:
         client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         #client.connect(("35.212.233.61", 9999))
         client.connect(("192.168.15.2", 9999))
-        client.sendall(f"{player1_name},{player2_name}".encode('utf-8'))
+        client.sendall(f"{player1_name},{player2_name},{partida},{cd_player}".encode('utf-8'))
         data = client.recv(2048).decode('utf-8')
         if data:
             received_player1_name, received_player2_name = data.split(',')
@@ -56,7 +56,8 @@ def inicializa_client(player1_name, player2_name):
             (config.height - waiting_message.get_height()) // 2
         ))
         pygame.display.update()
-        game_loop(client)
+        winner = game_loop(client)
+        return winner
     except Exception as e:
         show_popup_error('Error',f"Erro ao conectar ao servidor: {e}")
 
@@ -65,7 +66,6 @@ def show_score(player_name, score, x, y):
     value = font_style.render(f"{player_name}: {score}", True, config.branco)
     screen.blit(value, [x, y])
 
-
 def game_loop(client):
     global player_snake, other_snake, food_pos
     running = True
@@ -73,6 +73,8 @@ def game_loop(client):
 
     player1_score = 0
     player2_score = 0
+    player1_name = ''
+    player2_name = ''
 
     while running:
         for event in pygame.event.get():
@@ -116,6 +118,15 @@ def game_loop(client):
                 other_snake = game_state["player2"]["snake"]
                 player2_score = game_state["player2"]["score"]
                 food_pos = game_state["food_pos"]
+                player1_name = game_state["player1"]["name"]
+                player2_name = game_state["player2"]["name"]
+                if game_state["player2"]["venceu"]:
+                   winner = game_state["player2"]["name"]
+                elif game_state["player1"]["venceu"]:
+                    winner = game_state["player1"]["name"]
+                else:
+                    winner = ""
+
         except Exception as e:
             print(f"Erro ao comunicar com o servidor: {e}")
             break
@@ -130,8 +141,8 @@ def game_loop(client):
         pygame.draw.rect(screen, config.vermelho, pygame.Rect(food_pos[0], food_pos[1], config.snake_block, config.snake_block))
 
         # Mostrar as pontuações
-        show_score('player1_name', player1_score, 10, 10)
-        show_score('player2_name', player2_score, config.width - 150, 10)  # Ajuste a posição conforme necessário
+        show_score(player1_name, player1_score, 10, 10)
+        show_score(player2_name, player2_score, config.width - 150, 10)  # Ajuste a posição conforme necessário
 
         # Atualiza a tela
         pygame.display.update()
@@ -139,6 +150,7 @@ def game_loop(client):
 
     client.close()  # Fecha a conexão com o servidor
     print("Cliente desconectado")
+    return winner
 
 
 if __name__ == "__main__":

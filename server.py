@@ -2,6 +2,9 @@ import socket
 import threading
 import random
 import time
+import mysql.connector
+from pygame.examples.midi import null_key
+
 import config
 from config import width, height, snake_block
 
@@ -13,31 +16,101 @@ food_pos = [random.randrange(1, (width // snake_block)) * snake_block,
             random.randrange(1, (height // snake_block)) * snake_block]
 
 players = {
-    "player1": {"snake": [[100, 100]], "direction": "STOP", "score": 0, "name": ""},
-    "player2": {"snake": [[200, 200]], "direction": "STOP", "score": 0, "name": ""}
+    "player1": {"snake": [[100, 100]], "direction": "STOP", "score": 0, "name": "","id_jogador": 0, "venceu": False},
+    "player2": {"snake": [[200, 200]], "direction": "STOP", "score": 0, "name": "", "id_jogador": 0, "venceu": False}
 }
+vencedor = False
 
+def connect_to_db():
+    try:
+        connection = mysql.connector.connect(
+            host="snakegame-python-estacio.cfaemws4kovz.us-east-1.rds.amazonaws.com",
+            port=3306,
+            user="admin",
+            password="Teste123",
+            database="SnakePythonDB"
+        )
+        return connection
+    except mysql.connector.Error as err:
+        print(f"Error: {err}")
+
+def insere_partic_partida(partida, cd_player1, cd_player2):
+    try:
+        global cd_participa
+        # Conectar ao banco de dados
+        connection = connect_to_db()
+        cursor = connection.cursor()
+
+        # Buscar o código da última partida
+        query = "SELECT MAX(cd_participa) FROM PARTIC_PARTIDA"
+        cursor.execute(query)
+        result = cursor.fetchone()
+        cd_participa = 0
+        if result[0]:
+            cd_participa = result[0]
+        cd_participa += 1
+
+        # Inserir nova partida na tabela PARTIC_PARTIDA
+        query = "INSERT INTO PARTIC_PARTIDA(cd_participa ,fk_PARTIDA_cd_partida, fk_cd_player1, fk_cd_player2) value (%s, %s, %s, %s)"
+        cursor.execute(query, (cd_participa, partida, cd_player1, cd_player2))
+
+        # Confirmar as alterações no banco de dados
+        connection.commit()
+
+        # Fechar o cursor e a conexão
+        cursor.close()
+        connection.close()
+    except mysql.connector.Error as err:
+        print(err)
+
+def update_partic_partida(partida, sit_partida, id_player):
+    try:
+        # Conectar ao banco de dados
+        connection = connect_to_db()
+        cursor = connection.cursor()
+
+        # Inserir nova partida na tabela PARTIC_PARTIDA
+        query = ("UPDATE PARTIC_PARTIDA SET nponts_player1 = %s, nponts_player2 = %s "
+                 "WHERE cd_participa = %s")
+        cursor.execute(query, (int(players["player1"]["score"]), int(players["player2"]["score"]), cd_participa,))
+        # Confirmar as alterações no banco de dados
+        connection.commit()
+
+        query = "UPDATE PARTIDAS SET dt_fim = CURRENT_TIMESTAMP, cd_vencedor = %s, ctpo_sit = %s WHERE cd_partida = %s"
+        if id_player == 0:
+            id_player = None
+        cursor.execute(query, (id_player,sit_partida,partida,))
+
+        # Confirmar as alterações no banco de dados
+        connection.commit()
+
+        # Fechar o cursor e a conexão
+        cursor.close()
+        connection.close()
+    except mysql.connector.Error as err:
+        print(err)
 
 def handle_client(client_socket, player):
-    global food_pos, server_running
+    global food_pos, server_running, cd_partida
     try:
         data = client_socket.recv(2048).decode('utf-8')
         if data:
-
-            player1_name, player2_name = data.split(',')
+            player1_name, player2_name, cd_partida, cd_player = data.split(',')
             players[player]["name"] = player1_name
+            players[player]["id_jogador"] = cd_player
 
-            print(f"[Handle Client] Nomes dos jogadores recebidos: {player1_name}, {player2_name}", flush=True)
+            #print(f"[Handle Client] Nomes dos jogadores recebidos: {player1_name}, {player2_name}.", flush=True)
 
             # Enviar os nomes dos jogadores de volta para o cliente
             client_socket.sendall(f"{player1_name},{player2_name}".encode('utf-8'))
 
         print(f"[Handle Client] Iniciando manipulação do cliente {player}", flush=True)
+        if player == "player2":
+            insere_partic_partida(cd_partida, players["player1"]["id_jogador"],players["player2"]["id_jogador"])
 
         while server_running:
             if not all(players_connected):
                 continue
-
             try:
                 client_socket.settimeout(1)
                 data = client_socket.recv(2048).decode('utf-8')
@@ -98,6 +171,7 @@ def check_collision_self(player):
 
 
 def update_snake(player, players):
+    global server_running, vencedor
     snake = player["snake"]
     direction = player["direction"]
 
@@ -120,18 +194,37 @@ def update_snake(player, players):
 
     if check_collision_players(player1_snake, player2_snake):
         print("[Update Snake] Colisão detectada entre player1 e player2", flush=True)
+        if players["player1"]["score"] > players["player2"]["score"]:
+            players["player1"]["venceu"] = True
+        elif players["player2"]["score"] > players["player1"]["score"]:
+            players["player2"]["venceu"] = True
+        vencedor = True
+        server_running = False
+        return
 
-    if check_collision_self(player1_snake):
-        print("[Update Snake] Player 1 colidiu com ele mesmo", flush=True)
+    #if check_collision_self(player1_snake):
+    #    print("[Update Snake] Player 1 colidiu com ele mesmo", flush=True)
+    #    vencedor, players["player2"]["venceu"]  = True
+    #    server_running = False
+    #    return
 
-    if check_collision_self(player2_snake):
-        print("[Update Snake] Player 2 colidiu com ele mesmo", flush=True)
+    #if check_collision_self(player2_snake):
+    #    print("[Update Snake] Player 2 colidiu com ele mesmo", flush=True)
+    #    vencedor, players["player1"]["venceu"]  = True
+    #    server_running = False
+    #    return
 
     if is_out_of_bounds(player1_snake):
         print("[Update Snake] Player1 saiu da tela", flush=True)
+        vencedor, players["player2"]["venceu"]  = True
+        server_running = False
+        return
 
     if is_out_of_bounds(player2_snake):
         print("[Update Snake] Player2 saiu da tela", flush=True)
+        vencedor, players["player1"]["venceu"]  = True
+        server_running = False
+        return
 
 
 def main():
@@ -183,6 +276,21 @@ def main():
             time.sleep(1)
 
     finally:
+        if vencedor:
+            if players["player1"]["venceu"]:
+                id_vencedor = int(players["player1"]["id_jogador"])
+            elif players["player2"]["venceu"]:
+                id_vencedor = int(players["player2"]["id_jogador"])
+            else:
+                id_vencedor = 0
+
+            if id_vencedor > 0:
+                update_partic_partida(cd_partida,1,id_vencedor)
+            else:
+                update_partic_partida(cd_partida, 1, 0)
+        else:
+            update_partic_partida(cd_partida, 3, 0)
+
         print("[Main] Encerrando o servidor...", flush=True)
         server_running = False
         for t in threads:
@@ -190,6 +298,7 @@ def main():
 
         server.close()
         print("[Main] Servidor fechado.", flush=True)
+        exit()
 
 
 if __name__ == "__main__":
