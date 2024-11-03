@@ -3,7 +3,6 @@ import threading
 import random
 import time
 import mysql.connector
-from pygame.examples.midi import null_key
 
 import config
 from config import width, height, snake_block

@@ -162,16 +162,19 @@ def translate_error(err):
 def show_popup(title, message):
     root = tk.Tk()
     root.withdraw()  # Esconder a janela principal
+    root.attributes('-topmost', True)
     messagebox.showinfo(title, message)
 
 
 def show_popup_error(title, message):
     root = tk.Tk()
     root.withdraw()  # Esconder a janela principal
+    root.attributes('-topmost', True)
     messagebox.showerror(title, message)
 
 def check_server_running(ssh):
     stdin, stdout, stderr = ssh.exec_command('pgrep -f server.py')
+    #stdin, stdout, stderr = ssh.exec_command('ls')
     print(stdout.read().decode())
     if not stdout.read().decode():
         return False
@@ -207,7 +210,7 @@ def winner_screen(winner):
         pygame.display.flip()
 def connect_vm_ssh():
     # Definindo as informações da conexão
-    ip_address = '35.212.233.61'
+    ip_address = '35.212.236.121'
     username = 'chuaum141'
     private_key_path = 'keyVM-open'  # Substitua pelo caminho correto da sua chave privada
 
@@ -219,8 +222,8 @@ def connect_vm_ssh():
         # Carrega a chave privada
         private_key = paramiko.RSAKey.from_private_key_file(private_key_path)
         ssh.connect(ip_address, username=username, pkey=private_key)
-        #if not check_server_running(ssh):
-            #ssh.exec_command('nohup python3 ./server.py > server.log 2>&1 &')
+        if not check_server_running(ssh):
+            ssh.exec_command('nohup python3 ./server.py > server.log 2>&1 &')
         try:
             # Conectar ao banco de dados
             connection = connect_to_db()
@@ -254,8 +257,6 @@ def connect_vm_ssh():
             error_message = translate_error(err)
             # Exibir popup de erro
             show_popup_error("Erro", f"Falha ao registrar: {error_message}")
-
-
     except paramiko.AuthenticationException:
         print("Falha na autenticação, verifique suas credenciais")
     except paramiko.SSHException as sshException:
@@ -287,12 +288,16 @@ def play_game():
                 if play_on_button.collidepoint(event.pos) and logged_in_user:
                     partida = connect_vm_ssh()
                     data = inicializa_client(player1_name, player2_name, partida, cd_player)
-                    winner, players = data
-                    if int(players["player1"]["id_jogador"]) == cd_player:
-                        update_score(int(players["player1"]["score"]))
-                    else:
-                        update_score(int(players["player2"]["score"]))
-                    winner_screen(winner)
+                    if data is not None:
+                        winner, players = data
+                        if players is not None and "player1" in players and "id_jogador" in players["player1"]:
+                            if int(players["player1"]["id_jogador"]) == cd_player:
+                                update_score(int(players["player1"]["score"]))
+                            else:
+                                update_score(int(players["player2"]["score"]))
+                            winner_screen(winner)
+                        else:
+                            show_popup("Server", "Servidor Encerrado!")
 
         screen.fill(white)
         screen.blit(bg, (0, 0))
@@ -381,7 +386,7 @@ def leaderboards_screen():
 def login_screen():
     email_input = pygame.Rect(300, 200, 400, 32)
     password_input = pygame.Rect(300, 250, 400, 32)
-    login_button = pygame.Rect(350, 300, 100, 50)  # Botão de Login
+    login_button = pygame.Rect(350, 300, 120, 50)  # Botão de Login
     back_button = pygame.Rect(650, 550, 120, 50)
 
     email_text = ''

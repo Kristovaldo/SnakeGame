@@ -32,17 +32,19 @@ waiting_font = pygame.font.Font(None, 50)
 def show_popup_error(title, message):
     root = tk.Tk()
     root.withdraw()  # Esconder a janela principal
+    root.attributes('-topmost', True)
     messagebox.showerror(title, message)
 
 def show_popup(title, message):
     root = tk.Tk()
     root.withdraw()  # Esconder a janela principal
+    root.attributes('-topmost', True)
     messagebox.showinfo(title, message)
 
 def inicializa_client(player1_name, player2_name, partida, cd_player):
     try:
         client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        client.connect(("35.212.233.61", 9999))
+        client.connect(("35.212.236.121", 9999))
         #client.connect(("192.168.15.2", 9999))
         client.sendall(f"{player1_name},{player2_name},{partida},{cd_player}".encode('utf-8'))
         data = client.recv(2048).decode('utf-8')
@@ -57,7 +59,8 @@ def inicializa_client(player1_name, player2_name, partida, cd_player):
         ))
         pygame.display.update()
         winner = game_loop(client)
-        return winner
+        if winner is not None:
+            return winner
     except Exception as e:
         show_popup_error('Error',f"Erro ao conectar ao servidor: {e}")
 
@@ -68,6 +71,8 @@ def show_score(player_name, score, x, y):
 
 def game_loop(client):
     global player_snake, other_snake, food_pos
+    winner = None
+    game_state = None
     running = True
     direction = STOP
 
