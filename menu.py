@@ -112,8 +112,8 @@ def main_menu():
                     login_screen()
                 if register_button.collidepoint(event.pos)and not logged_in_user:
                     register_screen()
-                if credits_button.collidepoint(event.pos):
-                    credits_screen()
+                #if credits_button.collidepoint(event.pos):
+                #    credits_screen()
                 if leaderboards_button.collidepoint(event.pos):
                     leaderboards_screen()
                 if quit_button.collidepoint(event.pos):
@@ -128,7 +128,7 @@ def main_menu():
         if logged_in_user is None:
             pygame.draw.rect(screen, black, login_button, 2)
             pygame.draw.rect(screen, black, register_button, 2)
-        pygame.draw.rect(screen, black, credits_button, 2)
+        #pygame.draw.rect(screen, black, credits_button, 2)
         pygame.draw.rect(screen, black, leaderboards_button, 2)
         pygame.draw.rect(screen, black, quit_button, 2)
 
@@ -136,7 +136,7 @@ def main_menu():
         if logged_in_user is None:
             draw_text(screen, "Login", (login_button.x + 15, login_button.y + 10))
             draw_text(screen, "Register", (register_button.x + 5, register_button.y + 10))
-        draw_text(screen, "Credits", (credits_button.x + 15, credits_button.y + 10))
+        #draw_text(screen, "Credits", (credits_button.x + 15, credits_button.y + 10))
         draw_text(screen, "Leaderboards", (leaderboards_button.x + 5, leaderboards_button.y + 10))
         draw_text(screen, "Quit", (quit_button.x + 40, quit_button.y + 10))
 
