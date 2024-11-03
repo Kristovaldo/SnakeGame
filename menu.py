@@ -61,7 +61,7 @@ def update_score(new_score):
             connection = connect_to_db()
             cursor = connection.cursor()
 
-            query = "UPDATE nmaior_pontc = %s FROM PLAYER WHERE cd_player = %s"
+            query = "UPDATE PLAYER SET nmaior_pontc = %s WHERE cd_player = %s"
             cursor.execute(query,(new_score, cd_player))
             connection.commit()
             cursor.close()
@@ -195,7 +195,7 @@ def winner_screen(winner):
         if winner == "":
             draw_text(screen, "Empate!", (400, 300))
         else:
-            draw_text(screen, f"{winner} Venceu!", (400, 300))
+            draw_text(screen, f"{winner} Venceu!", (200, 300))
         pygame.draw.rect(screen, black, back_button, 2)
         draw_text(screen, "Back", (back_button.x + 20, back_button.y + 10))
 
@@ -286,13 +286,13 @@ def play_game():
                     rodar_jogo()
                 if play_on_button.collidepoint(event.pos) and logged_in_user:
                     partida = connect_vm_ssh()
-                    winner = inicializa_client(player1_name, player2_name, partida, cd_player)
-                    #winner, players = data
-                    #if int(players["player1"]["id_jogador"]) == cd_player:
-                    #    update_score(int(players["player1"]["score"]))
-                    #else:
-                    #    update_score(int(players["player2"]["score"]))
-                    #winner_screen(winner)
+                    data = inicializa_client(player1_name, player2_name, partida, cd_player)
+                    winner, players = data
+                    if int(players["player1"]["id_jogador"]) == cd_player:
+                        update_score(int(players["player1"]["score"]))
+                    else:
+                        update_score(int(players["player2"]["score"]))
+                    winner_screen(winner)
 
         screen.fill(white)
         screen.blit(bg, (0, 0))
@@ -462,11 +462,13 @@ def register_user(nickname, email, password):
 
         # Exibir popup de sucesso
         show_popup("Sucesso", "Registrado com sucesso!")
+        return True
     except mysql.connector.Error as err:
         # Tratar mensagens de erro
         error_message = translate_error(err)
         # Exibir popup de erro
         show_popup_error("Erro", f"Falha ao registrar: {error_message}")
+        return False
 
 
 def register_screen():
@@ -507,7 +509,8 @@ def register_screen():
                             if validate_field(nickname_text, 15):
                                 if validate_field(password_text, 20):
                                     if password_text == confirm_password_text:
-                                        register_user(nickname_text, email_text, password_text)
+                                        if register_user(nickname_text, email_text, password_text):
+                                           return
                                     else:
                                         show_popup_error("Erro", "As senhas não coincidem.")
                                 else:

@@ -124,14 +124,12 @@ def handle_client(client_socket, player):
 
             players[player]["direction"] = data
             update_snake(players[player], players)
-
             if abs(players[player]["snake"][0][0] - food_pos[0]) < snake_block and abs(
                     players[player]["snake"][0][1] - food_pos[1]) < snake_block:
                 food_pos = [random.randrange(1, (width // snake_block)) * snake_block,
                             random.randrange(1, (height // snake_block)) * snake_block]
                 players[player]["score"] += 10
                 players[player]["snake"].append(players[player]["snake"][-1][:])
-
             game_state = {"player1": players["player1"], "player2": players["player2"], "food_pos": food_pos}
             game_state_str = str(game_state)
             client_socket.sendall(game_state_str.encode('utf-8'))
@@ -216,13 +214,14 @@ def update_snake(player, players):
 
     if is_out_of_bounds(player1_snake):
         print("[Update Snake] Player1 saiu da tela", flush=True)
-        vencedor, players["player2"]["venceu"]  = True
+        vencedor = True
+        players["player2"]["venceu"]  = True
         server_running = False
         return
-
     if is_out_of_bounds(player2_snake):
         print("[Update Snake] Player2 saiu da tela", flush=True)
-        vencedor, players["player1"]["venceu"]  = True
+        vencedor = True
+        players["player1"]["venceu"]  = True
         server_running = False
         return
 

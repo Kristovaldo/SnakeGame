@@ -42,8 +42,8 @@ def show_popup(title, message):
 def inicializa_client(player1_name, player2_name, partida, cd_player):
     try:
         client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        #client.connect(("35.212.233.61", 9999))
-        client.connect(("192.168.15.2", 9999))
+        client.connect(("35.212.233.61", 9999))
+        #client.connect(("192.168.15.2", 9999))
         client.sendall(f"{player1_name},{player2_name},{partida},{cd_player}".encode('utf-8'))
         data = client.recv(2048).decode('utf-8')
         if data:
@@ -150,7 +150,7 @@ def game_loop(client):
 
     client.close()  # Fecha a conexão com o servidor
     print("Cliente desconectado")
-    return winner
+    return winner, game_state
 
 
 if __name__ == "__main__":
