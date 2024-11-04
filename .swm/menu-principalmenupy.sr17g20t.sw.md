@@ -468,13 +468,18 @@ def winner_screen(winner):
 
 # Leaderboards screen
 
-<SwmSnippet path="/menu.py" line="328">
+<SwmSnippet path="menu.py" line="323">
 
 ---
 
 We define the <SwmToken path="/menu.py" pos="118:1:1" line-data="                    leaderboards_screen()">`leaderboards_screen`</SwmToken> function, which displays the top players' data and allows navigation through pages of leaderboard entries.
 
 ```
+def leaderboards_screen():
+    leaderboards_data = fetch_leaderboards_data()
+    back_button = pygame.Rect(650, 550, 120, 50)
+    next_button = pygame.Rect(680, 500, 80, 40)
+    prev_button = pygame.Rect(20, 500, 80, 40)
 
     page = 0
     running = True

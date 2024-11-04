@@ -75,13 +75,11 @@ waiting_font = pygame.font.Font(None, 50)
 
 </SwmSnippet>
 
-# Client initialization and server communication
-
 <SwmSnippet path="client.py" line="32">
 
 ---
 
-&nbsp;
+This code defines two functions `show_popup_error` and `show_popup` that display popup windows with a specified `title` and `message`. The windows are created using the `tkinter` library and the `messagebox` module.
 
 ```
 def show_popup_error(title, message):
@@ -100,6 +98,8 @@ def show_popup(title, message):
 ---
 
 </SwmSnippet>
+
+# Client initialization and server communication
 
 <SwmSnippet path="client.py" line="44">
 
